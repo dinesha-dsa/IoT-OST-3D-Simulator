@@ -1,0 +1,4 @@
+[wokwi]
+version = 1
+firmware = "../firmware/ost_v1/ost_v1.ino"
+elf = ""
