@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Interactive IoT OST circuit simulator for Arduino, HC-SR04, IR sensor, LED and buzzer." />
+  <title>IoT OST 3D Circuit Simulator</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">
+        <span>KJSSE · Internet of Things · OST Practice</span>
+        <span class="prepared-by">Prepared By – Prof. Dinesh S. Auti, Department of EXCP</span>
+      </p>
+      <h1>Interactive IoT Circuit Digital Twin</h1>
+    </div>
+    <div class="version">VERSION 1.0</div>
+  </header>
+
+  <main>
+    <section class="workspace" aria-label="Circuit simulation workspace">
+      <div class="toolbar" role="group" aria-label="Simulation controls">
+        <button id="runBtn" class="primary">Run</button>
+        <button id="stepBtn">Step</button>
+        <button id="resetBtn">Reset</button>
+        <label>View
+          <select id="viewMode">
+            <option value="logic">Logic and data</option>
+            <option value="power">Electrical current</option>
+          </select>
+        </label>
+        <label class="rotation">Board angle
+          <input id="angle" type="range" min="-10" max="34" value="16" />
+        </label>
+      </div>
+
+      <div class="layout">
+        <div class="stage-panel">
+          <div class="stage-header">
+            <div>
+              <span class="status-dot" id="statusDot"></span>
+              <strong id="simulationStatus">Ready</strong>
+            </div>
+            <span id="modeLabel">LOGIC VIEW</span>
+          </div>
+
+          <div class="scene" id="scene">
+            <div class="board" id="board">
+              <svg class="wires" viewBox="0 0 1000 560" aria-hidden="true">
+                <path id="wireTrig" class="wire signal" d="M250,160 C350,150 410,190 485,225" />
+                <path id="wireEcho" class="wire signal" d="M250,210 C350,220 405,245 485,255" />
+                <path id="wireIR" class="wire signal" d="M250,420 C365,400 420,320 485,290" />
+                <path id="wireLed" class="wire control" d="M625,230 C725,185 790,145 850,140" />
+                <path id="wireBuzz" class="wire control" d="M625,280 C730,315 790,350 850,375" />
+                <path class="wire power" d="M105,95 C280,65 620,75 900,95" />
+                <path class="wire ground" d="M105,495 C330,525 680,520 900,485" />
+              </svg>
+
+              <div class="component sonar" data-name="HC-SR04">
+                <div class="component-top"><span class="eye"></span><span class="eye"></span></div>
+                <strong>HC-SR04</strong><small>TRIG D9 · ECHO D10</small>
+              </div>
+              <div class="component ir" data-name="IR Sensor">
+                <div class="ir-eye"></div><strong>IR Sensor</strong><small>OUT D7</small>
+              </div>
+              <div class="component arduino" data-name="Arduino Uno">
+                <span class="usb"></span><span class="chip"></span>
+                <strong>ARDUINO UNO</strong><small>Decision controller</small>
+                <div class="pin-row"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+              </div>
+              <div class="component led" id="ledComp" data-name="LED">
+                <span class="led-dome"></span><strong>LED</strong><small>D8 via 220 Ω</small>
+              </div>
+              <div class="component buzzer" id="buzzerComp" data-name="Buzzer">
+                <span class="speaker"></span><strong>Buzzer</strong><small>D6</small>
+              </div>
+              <div class="rail five">5 V</div><div class="rail gnd">GND</div>
+
+              <div id="particles" aria-hidden="true"></div>
+              <div class="object" id="virtualObject"><span>Virtual object</span></div>
+            </div>
+          </div>
+
+          <div class="legend" aria-label="Animation legend">
+            <span><i class="bit high"></i>Logic HIGH</span>
+            <span><i class="bit low"></i>Logic LOW</span>
+            <span><i class="bit data"></i>Sensor data</span>
+            <span><i class="bit command"></i>Control command</span>
+            <span><i class="bit current"></i>Conventional current</span>
+          </div>
+        </div>
+
+        <aside class="side-panel">
+          <section class="card readings">
+            <h2>Live readings</h2>
+            <div class="metric"><span>Distance</span><strong><b id="distanceOut">18</b> cm</strong></div>
+            <div class="metric"><span>IR detection</span><strong id="irOut">LOW</strong></div>
+            <div class="metric"><span>Decision</span><strong id="decisionOut">SAFE</strong></div>
+            <div class="metric"><span>Actuators</span><strong id="actuatorOut">OFF</strong></div>
+          </section>
+
+          <section class="card inputs">
+            <h2>Test conditions</h2>
+            <label>Object distance <output id="distanceLabel">18 cm</output>
+              <input id="distance" type="range" min="3" max="40" value="18" />
+            </label>
+            <label class="toggle-row">IR object detected
+              <input id="irDetected" type="checkbox" role="switch" />
+            </label>
+            <p class="rule"><strong>Rule:</strong> Alarm when distance ≤ 10 cm <em>AND</em> IR = HIGH.</p>
+          </section>
+
+          <section class="card faults">
+            <h2>Fault laboratory</h2>
+            <label class="toggle-row">Disconnect ECHO wire<input id="faultEcho" type="checkbox" role="switch" /></label>
+            <label class="toggle-row">Remove common GND<input id="faultGround" type="checkbox" role="switch" /></label>
+            <label class="toggle-row">Use wrong LED pin<input id="faultPin" type="checkbox" role="switch" /></label>
+          </section>
+        </aside>
+      </div>
+    </section>
+
+    <section class="lower-grid">
+      <section class="code-card">
+        <div class="section-head"><h2>Controller code trace</h2><span id="stepCounter">Step 0 of 8</span></div>
+        <pre id="code"><code><span data-step="1">digitalWrite(TRIG_PIN, HIGH);</span>
+<span data-step="2">duration = pulseIn(ECHO_PIN, HIGH, 30000);</span>
+<span data-step="3">distance = duration * 0.0343 / 2.0;</span>
+<span data-step="4">irState = digitalRead(IR_PIN);</span>
+<span data-step="5">alarm = distance &lt;= 10 &amp;&amp; irState == HIGH;</span>
+<span data-step="6">digitalWrite(LED_PIN, alarm);</span>
+<span data-step="7">digitalWrite(BUZZER_PIN, alarm);</span>
+<span data-step="8">Serial.println(alarm ? "ALERT" : "SAFE");</span></code></pre>
+      </section>
+
+      <section class="trace-card">
+        <div class="section-head"><h2>Signal journey</h2><span id="phaseBadge">IDLE</span></div>
+        <ol id="journey">
+          <li data-step="1"><b>Trigger</b><span>Controller sends a 10 µs pulse.</span></li>
+          <li data-step="2"><b>Echo</b><span>Sensor returns a pulse proportional to distance.</span></li>
+          <li data-step="3"><b>Calculate</b><span>Round-trip time becomes centimetres.</span></li>
+          <li data-step="4"><b>Read IR</b><span>Digital input is sampled.</span></li>
+          <li data-step="5"><b>Decide</b><span>Both conditions are evaluated.</span></li>
+          <li data-step="6"><b>LED command</b><span>D8 changes state.</span></li>
+          <li data-step="7"><b>Buzzer command</b><span>D6 changes state.</span></li>
+          <li data-step="8"><b>Report</b><span>Result appears on Serial Monitor.</span></li>
+        </ol>
+      </section>
+
+      <section class="console-card">
+        <div class="section-head"><h2>Serial Monitor</h2><button id="clearBtn" class="text-button">Clear</button></div>
+        <div id="console" class="console" role="log" aria-live="polite"><p>&gt; Simulator ready.</p></div>
+        <p class="accuracy-note"><strong>Engineering note:</strong> Logic information travels between devices; electrical current flows only in a closed circuit from supply through a load and back to ground.</p>
+      </section>
+    </section>
+  </main>
+
+  <footer>IoT OST Practice · Version 1.0 · Educational digital twin</footer>
+  <script src="app.js"></script>
+</body>
+</html>
